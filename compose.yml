@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # TODO: The CARLA image doesn't play nice with graphics drivers on Windows.
+  # Installing vulkantools onto the image and running vulkaninfo shows that
+  # the NVIDIA drivers aren't being used, even if WSL is able to use them.
+  # Building a new image by taking the CARLA Linux release, setting the
+  # included Dockerfile to use Ubuntu 22.04 or a NVIDIA CUDA image as the base
+  # didn't solve this either.
+
+  #carla:
+  #  image: carlasim/carla:0.9.14
+  #  container_name: carla
+  #  command: ./CarlaUE4.sh -nosound -RenderOffScreen
+  #  privileged: true
+  #  runtime: nvidia
+  #  ports:
+  #    - 2000-2002:2000-2002
+  #  environment:
+  #    - DISPLAY=host.docker.internal:0
+  #    - NVIDIA_VISIBLE_DEVICES=all
+  #    - NVIDIA_DRIVER_CAPABILITIES=all
+  #  volumes:
+  #   - /tmp/.X11-unix:/tmp/.X11-unix
+  #   - ./carla/logs:/home/carla/carlalog
+  #   - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d
+  #  deploy:
+  #    resources:
+  #      reservations:
+  #        devices:
+  #          - driver: nvidia
+  #            count: 1
+  #            capabilities: [gpu]
+
+  rabbitmq:
+    image: rabbitmq:3.12
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/rabbitmq:/var/lib/rabbitmq
+
+  drive:
+    build:
+      context: ./
+      dockerfile: drive/Dockerfile
+    container_name: drive
+    environment:
+      - CARLA_SERVER=host.docker.internal:2000
+      - DISPLAY=host.docker.internal:0
+      - /tmp/.X11-unix:/tmp/.X11-unix
+
+
+  positionsensor:
+    build:
+      context: ./
+      dockerfile: position_sensor/Dockerfile
+    container_name: positionsensor
+    environment:
+      - CARLA_SERVER=host.docker.internal:2000
+      - MQ_SERVER=rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - drive
+    # RabbitMQ's container reports being up before it's finished initializing,
+    # so this one fails to connect and crashes. Unfortunately this will
+    # cause a restart loop if there is a genuine failure as well.
+    restart: on-failure
+
+  obstaclesensor:
+    build:
+      context: ./
+      dockerfile: obstacle_sensor/Dockerfile
+    container_name: obstaclesensor
+    environment:
+      - CARLA_SERVER=host.docker.internal:2000
+      - MQ_SERVER=rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - drive
+    restart: on-failure
+  
+  obstaclehandling:
+    build: 
+      context: ./
+      dockerfile: obstacle_handling/Dockerfile
+    container_name: obstaclehandling
+    environment:
+      - CARLA_SERVER=host.docker.internal:2000
+      - MQ_SERVER=rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - drive
+    restart: on-failure
