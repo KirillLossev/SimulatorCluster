@@ -48,7 +48,8 @@ services:
       dockerfile: drive/Dockerfile
     container_name: drive
     environment:
-      - CARLA_SERVER=host.docker.internal:2000
+      - HUD_VERSION=$HUD_VERSION
+      - CARLA_SERVER=$CARLA_SERVER
       - DISPLAY=host.docker.internal:0
       - /tmp/.X11-unix:/tmp/.X11-unix
 
@@ -59,7 +60,7 @@ services:
       dockerfile: position_sensor/Dockerfile
     container_name: positionsensor
     environment:
-      - CARLA_SERVER=host.docker.internal:2000
+      - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
     depends_on:
       - rabbitmq
@@ -75,7 +76,7 @@ services:
       dockerfile: obstacle_sensor/Dockerfile
     container_name: obstaclesensor
     environment:
-      - CARLA_SERVER=host.docker.internal:2000
+      - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
     depends_on:
       - rabbitmq
@@ -88,8 +89,9 @@ services:
       dockerfile: obstacle_handling/Dockerfile
     container_name: obstaclehandling
     environment:
-      - CARLA_SERVER=host.docker.internal:2000
+      - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
+      - VERSION=1
     depends_on:
       - rabbitmq
       - drive
