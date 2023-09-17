@@ -61,6 +61,8 @@ services:
       - MQ_SERVER=rabbitmq:5672
       - DISPLAY=host.docker.internal:0
       - /tmp/.X11-unix:/tmp/.X11-unix
+      # Debug Info
+      - CC_SPEED=$CC_SPEED
     restart: on-failure
     depends_on:
       rabbitmq:
@@ -153,6 +155,8 @@ services:
       rabbitmq:
         condition: service_healthy  
       speedsensor:
+        condition: service_started
+      cruisecontrol:
         condition: service_started
 
   throttleactuator:

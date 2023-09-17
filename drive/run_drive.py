@@ -36,9 +36,11 @@ Welcome to CARLA No-Rendering Mode Visualizer
 # -- find carla module ---------------------------------------------------------
 # ==============================================================================
 
+import functools
 import glob
 import json
 import os
+import threading
 import pika
 import sys
 from host_util import parse_hostport
@@ -56,6 +58,10 @@ if not os.environ["HUD_VERSION"]:
 (carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
 (mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
 hud_version = os.environ["HUD_VERSION"]
+
+debug_info = []
+if os.environ["CC_SPEED"]:
+    debug_info.append("Cruise Control Setting: " + os.environ["CC_SPEED"] + " km/h")
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -297,7 +303,8 @@ class HUD (object):
         self.dim = (width, height)
         self._init_hud_params()
         self._init_data_params()
-        self.speed_ratio = 1
+        self.speed = 0
+        self.speed_limit = 0
 
     def start(self):
         """Does nothing since it does not need to use other modules"""
@@ -401,23 +408,31 @@ class HUD (object):
                             pygame.draw.rect(display, COLOR_ALUMINIUM_0, rect)
                         item = item[0]
                     if item:  # At this point has to be a str.
-                        speed_color = COLOR_ALUMINIUM_0
-                        if hud_version == "2":
-                            if self.speed_ratio < 0.5 or self.speed_ratio > 1.1:
-                                speed_color = COLOR_SCARLET_RED_0
-                            elif self.speed_ratio < 0.75 or self.speed_ratio > 1:
-                                speed_color = COLOR_BUTTER_0
-                            else:
-                                speed_color = COLOR_CHAMELEON_0
-                        if item.startswith("Hero Speed"):
-                            surface = self._font_mono.render(item, True, speed_color).convert_alpha()
-                        else:
-                            surface = self._font_mono.render(item, True, COLOR_ALUMINIUM_0).convert_alpha()
+                        surface = self._font_mono.render(item, True, COLOR_ALUMINIUM_0).convert_alpha()
                         display.blit(surface, (8, 18 * i + v_offset))
                     v_offset += 18
                 v_offset += 24
+            if hud_version != "0":
+                # If the speed limit is unavailable, fall back to a green ratio
+                speed_ratio = self.speed / self.speed_limit if self.speed_limit != 0 else 0.8
+                speed_color = COLOR_ALUMINIUM_0
+                if hud_version == "2":
+                    if speed_ratio < 0.5 or speed_ratio > 1.1:
+                        speed_color = COLOR_SCARLET_RED_0
+                    elif speed_ratio < 0.75 or speed_ratio > 1:
+                        speed_color = COLOR_BUTTER_0
+                    else:
+                        speed_color = COLOR_CHAMELEON_0
+                speed_text = f"Speed: {self.speed:.3f} km/h"
+                surface = self._header_font.render(speed_text, True, speed_color).convert_alpha()
+                start_x = (self.dim[0] - surface.get_width()) / 2
+                display.blit(surface, (start_x, self.dim[1] - 100))
         self._notifications.render(display)
         self.help.render(display)
+
+    def get_speed_update(self, channel, method, properties, body):
+        """Accepts a speed update from the MQ"""
+        self.speed = float(body)
 
 
 # ==============================================================================
@@ -1083,9 +1098,6 @@ class World(object):
 
         hero_mode_text = []
         if self.hero_actor is not None:
-            hero_speed = self.hero_actor.get_velocity()
-            hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
-
             affected_traffic_light_text = 'None'
             if self.affected_traffic_light is not None:
                 state = self.affected_traffic_light.state
@@ -1103,7 +1115,6 @@ class World(object):
                 'Hero Mode:                 ON',
                 'Hero ID:              %7d' % self.hero_actor.id,
                 'Hero Vehicle:  %14s' % get_actor_display_name(self.hero_actor, truncate=14),
-                'Hero Speed:          %3d km/h' % hero_speed_text,
                 'Hero Affected by:',
                 '  Traffic Light: %12s' % affected_traffic_light_text,
                 '  Speed Limit:       %3d km/h' % affected_speed_limit_text
@@ -1121,9 +1132,9 @@ class World(object):
         ]
 
         self._hud.add_info(self.name, info_text)
-        if hud_version != "0":
-            self._hud.add_info('HERO', hero_mode_text)
-            self._hud.speed_ratio = (hero_speed_text / affected_speed_limit_text) if affected_traffic_light_text != 0 else 1
+        self._hud.add_info("Debug", debug_info)
+        self._hud.speed_limit = affected_speed_limit_text
+        self._hud.add_info('HERO', hero_mode_text)
 
     @staticmethod
     def on_world_tick(weak_self, timestamp):
@@ -1429,12 +1440,14 @@ class InputControl(object):
         self._hud = None
         self._world = None
         self._control_channel = None
+        self._connection = None
 
-    def start(self, hud, world, control_channel):
+    def start(self, hud, world, control_channel, pika_connection):
         """Assigns other initialized modules that input module needs."""
         self._hud = hud
         self._world = world
         self._control_channel = control_channel
+        self._connection = pika_connection
 
         self._hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
@@ -1535,11 +1548,11 @@ class InputControl(object):
             if isinstance(self.control, carla.VehicleControl):
                 self._parse_keys(clock.get_time())
                 self.control.reverse = self.control.gear < 0
-            self._control_channel.basic_publish(
-                exchange='control',
-                routing_key='',
-                body=serialize_control(self.control)
-            )
+            publish_cb = functools.partial(self._control_channel.basic_publish,
+                              exchange='control',
+                              routing_key='',
+                              body=serialize_control(self.control))
+            self._connection.add_callback_threadsafe(publish_cb)
 
     @staticmethod
     def _is_quit_shortcut(key):
@@ -1556,17 +1569,16 @@ def game_loop(args):
     """Initialized, Starts and runs all the needed modules for No Rendering Mode"""
     try:
         # Connect to the message queue
-        print('x')
         connection = pika.BlockingConnection(pika.ConnectionParameters(
         host=mq_host,
         port=mq_port))
-        print('a')
         channel = connection.channel()
-        print('b')
         channel.exchange_declare(exchange='control', exchange_type='fanout')
-        print('c')
+
+        speed_queue = channel.queue_declare(queue='', exclusive='True')
+        channel.queue_bind(exchange='speed', queue=speed_queue.method.queue)
+
         channel.confirm_delivery()
-        print('d')
         # Init Pygame
         pygame.init()
         display = pygame.display.set_mode(
@@ -1588,10 +1600,17 @@ def game_loop(args):
         world = World(TITLE_WORLD, args, timeout=2.0)
 
         # For each module, assign other modules that are going to be used inside that module
-        input_control.start(hud, world, channel)
+        input_control.start(hud, world, channel, connection)
         hud.start()
         world.start(hud, input_control)
 
+        channel.basic_consume(
+            queue=speed_queue.method.queue,
+            auto_ack=True,
+            on_message_callback=hud.get_speed_update
+        )
+        speed_thread = threading.Thread(target=channel.start_consuming)
+        speed_thread.start()
         # Game loop
         clock = pygame.time.Clock()
         while True:
@@ -1612,6 +1631,8 @@ def game_loop(args):
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
+        channel.stop_consuming()
+        speed_thread.join(0)
 
     finally:
         if world is not None:
