@@ -37,18 +37,24 @@ Welcome to CARLA No-Rendering Mode Visualizer
 # ==============================================================================
 
 import glob
+import json
 import os
+import pika
 import sys
 from host_util import parse_hostport
 
 if not os.environ["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
     exit()
+if not os.environ["MQ_SERVER"]:
+    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
+    exit()
 if not os.environ["HUD_VERSION"]:
     print("The HUD component version is not specified. Set the HUD_VERSION environment variable.")
     exit()
 
 (carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
+(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
 hud_version = os.environ["HUD_VERSION"]
 
 try:
@@ -170,6 +176,18 @@ PIXELS_AHEAD_VEHICLE = 150
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
+
+def serialize_control(control):
+    props = {
+        'throttle': control.throttle,
+        'steer': control.steer,
+        'brake': control.brake,
+        'hand_brake': control.hand_brake,
+        'reverse': control.reverse,
+        'manual_gear_shift': control.manual_gear_shift,
+        'gear': control.gear
+    }
+    return json.dumps(props)
 
 
 class Util(object):
@@ -1410,11 +1428,13 @@ class InputControl(object):
         # Modules that input will depend on
         self._hud = None
         self._world = None
+        self._control_channel = None
 
-    def start(self, hud, world):
+    def start(self, hud, world, control_channel):
         """Assigns other initialized modules that input module needs."""
         self._hud = hud
         self._world = world
+        self._control_channel = control_channel
 
         self._hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
@@ -1515,8 +1535,11 @@ class InputControl(object):
             if isinstance(self.control, carla.VehicleControl):
                 self._parse_keys(clock.get_time())
                 self.control.reverse = self.control.gear < 0
-            if (self._world.hero_actor is not None):
-                self._world.hero_actor.apply_control(self.control)
+            self._control_channel.basic_publish(
+                exchange='control',
+                routing_key='',
+                body=serialize_control(self.control)
+            )
 
     @staticmethod
     def _is_quit_shortcut(key):
@@ -1532,6 +1555,18 @@ class InputControl(object):
 def game_loop(args):
     """Initialized, Starts and runs all the needed modules for No Rendering Mode"""
     try:
+        # Connect to the message queue
+        print('x')
+        connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host=mq_host,
+        port=mq_port))
+        print('a')
+        channel = connection.channel()
+        print('b')
+        channel.exchange_declare(exchange='control', exchange_type='fanout')
+        print('c')
+        channel.confirm_delivery()
+        print('d')
         # Init Pygame
         pygame.init()
         display = pygame.display.set_mode(
@@ -1553,7 +1588,7 @@ def game_loop(args):
         world = World(TITLE_WORLD, args, timeout=2.0)
 
         # For each module, assign other modules that are going to be used inside that module
-        input_control.start(hud, world)
+        input_control.start(hud, world, channel)
         hud.start()
         world.start(hud, input_control)
 

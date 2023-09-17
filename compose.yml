@@ -41,6 +41,14 @@ services:
       - 15672:15672
     volumes:
       - ~/rabbitmq:/var/lib/rabbitmq
+    # Succeeds when RabbitMQ is fully available. Dependents
+    # should wait for the health check before starting to
+    # avoid restart loops
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+        interval: 20s
+        timeout: 10s
+        retries: 5
 
   drive:
     build:
@@ -50,49 +58,115 @@ services:
     environment:
       - HUD_VERSION=$HUD_VERSION
       - CARLA_SERVER=$CARLA_SERVER
+      - MQ_SERVER=rabbitmq:5672
       - DISPLAY=host.docker.internal:0
       - /tmp/.X11-unix:/tmp/.X11-unix
-
-
-  positionsensor:
-    build:
-      context: ./
-      dockerfile: position_sensor/Dockerfile
-    container_name: positionsensor
-    environment:
-      - CARLA_SERVER=$CARLA_SERVER
-      - MQ_SERVER=rabbitmq:5672
-    depends_on:
-      - rabbitmq
-      - drive
-    # RabbitMQ's container reports being up before it's finished initializing,
-    # so this one fails to connect and crashes. Unfortunately this will
-    # cause a restart loop if there is a genuine failure as well.
     restart: on-failure
-
-  obstaclesensor:
-    build:
-      context: ./
-      dockerfile: obstacle_sensor/Dockerfile
-    container_name: obstaclesensor
-    environment:
-      - CARLA_SERVER=$CARLA_SERVER
-      - MQ_SERVER=rabbitmq:5672
     depends_on:
-      - rabbitmq
-      - drive
-    restart: on-failure
+      rabbitmq:
+        condition: service_healthy     
+    
+
+
+  # positionsensor:
+  #   build:
+  #     context: ./
+  #     dockerfile: position_sensor/Dockerfile
+  #   container_name: positionsensor
+  #   environment:
+  #     - CARLA_SERVER=$CARLA_SERVER
+  #     - MQ_SERVER=rabbitmq:5672
+  #   depends_on:
+  #     - rabbitmq
+  #     - drive
+  #   # RabbitMQ's container reports being up before it's finished initializing,
+  #   # so this one fails to connect and crashes. Unfortunately this will
+  #   # cause a restart loop if there is a genuine failure as well.
+  #   restart: on-failure
+
+  # obstaclesensor:
+  #   build:
+  #     context: ./
+  #     dockerfile: obstacle_sensor/Dockerfile
+  #   container_name: obstaclesensor
+  #   environment:
+  #     - CARLA_SERVER=$CARLA_SERVER
+  #     - MQ_SERVER=rabbitmq:5672
+  #   depends_on:
+  #     - rabbitmq
+  #     - drive
+  #   restart: on-failure
   
-  obstaclehandling:
+  # obstaclehandling:
+  #   build: 
+  #     context: ./
+  #     dockerfile: obstacle_handling/Dockerfile
+  #   container_name: obstaclehandling
+  #   environment:
+  #     - CARLA_SERVER=$CARLA_SERVER
+  #     - MQ_SERVER=rabbitmq:5672
+  #     - VERSION=1
+  #   depends_on:
+  #     - rabbitmq
+  #     - drive
+  #   restart: on-failure
+
+  speedsensor:
+    build:
+      context: ./
+      dockerfile: speed_sensor/Dockerfile
+    container_name: speedsensor
+    environment:
+      - CARLA_SERVER=$CARLA_SERVER
+      - MQ_SERVER=rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy  
+      drive:
+        condition: service_started
+
+  cruisecontrol:
     build: 
       context: ./
-      dockerfile: obstacle_handling/Dockerfile
-    container_name: obstaclehandling
+      dockerfile: cruise_control_handling/Dockerfile
+    container_name: cruisecontrol
+    environment:
+      - MQ_SERVER=rabbitmq:5672
+      - CC_SPEED=$CC_SPEED
+    depends_on:
+      rabbitmq:
+        condition: service_healthy  
+      drive:
+        condition: service_started
+      speedsensor:
+        condition: service_started
+
+  control:
+    build: 
+      context: ./
+      dockerfile: control_handling/Dockerfile
+    container_name: control
+    environment:
+      - MQ_SERVER=rabbitmq:5672
+      - CC_SPEED=$CC_SPEED
+    depends_on:
+      rabbitmq:
+        condition: service_healthy  
+      speedsensor:
+        condition: service_started
+
+  throttleactuator:
+    build:
+      context: ./
+      dockerfile: throttle_actuator/Dockerfile
+    container_name: throttleactuator
     environment:
       - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
-      - VERSION=1
     depends_on:
-      - rabbitmq
-      - drive
-    restart: on-failure
+      rabbitmq:
+        condition: service_healthy  
+      drive:
+        condition: service_started
+      cruisecontrol:
+        condition: service_started
