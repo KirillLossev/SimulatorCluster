@@ -158,6 +158,8 @@ services:
         condition: service_started
       cruisecontrol:
         condition: service_started
+      drive:
+        condition: service_started
 
   throttleactuator:
     build:
