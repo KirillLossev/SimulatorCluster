@@ -66,9 +66,11 @@ services:
     restart: on-failure
     depends_on:
       rabbitmq:
-        condition: service_healthy     
-    
-
+        condition: service_healthy
+      speedsensor:
+        condition: service_started 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # positionsensor:
   #   build:
@@ -123,9 +125,10 @@ services:
       - MQ_SERVER=rabbitmq:5672
     depends_on:
       rabbitmq:
-        condition: service_healthy  
-      drive:
-        condition: service_started
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 
   cruisecontrol:
     build: 
@@ -176,3 +179,5 @@ services:
         condition: service_started
       cruisecontrol:
         condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

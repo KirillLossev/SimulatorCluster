@@ -17,7 +17,7 @@ def process_cc_message(channel, method, properties, body):
 
 def process_control_message(channel, method, properties, body):
     drive_control = json.loads(body)
-    if cc_throttle_active and float(drive_control['throttle']) == 0:
+    if cc_throttle_active and (float(drive_control['throttle']) == 0):
         drive_control['throttle'] = '1'
     channel.basic_publish(exchange='throttle',
                           routing_key='',

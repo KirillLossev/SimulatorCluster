@@ -4,7 +4,7 @@ import random
 def spawn_hero(world):
         """Spawns the hero actor when the script runs"""
         # Get a random blueprint.
-        blueprint = random.choice(world.get_blueprint_library())
+        blueprint = random.choice(world.get_blueprint_library().filter('vehicle.*'))
         blueprint.set_attribute('role_name', 'hero')
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)

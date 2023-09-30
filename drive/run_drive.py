@@ -318,6 +318,7 @@ class HUD (object):
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
         self._header_font = pygame.font.SysFont('Arial', 14, True)
+        self._speed_font = pygame.font.SysFont('Arial', 24, True)
         self.help = HelpText(pygame.font.Font(mono, 24), *self.dim)
         self._notifications = FadingText(
             pygame.font.Font(pygame.font.get_default_font(), 20),
@@ -424,7 +425,7 @@ class HUD (object):
                     else:
                         speed_color = COLOR_CHAMELEON_0
                 speed_text = f"Speed: {self.speed:.3f} km/h"
-                surface = self._header_font.render(speed_text, True, speed_color).convert_alpha()
+                surface = self._speed_font.render(speed_text, True, speed_color).convert_alpha()
                 start_x = (self.dim[0] - surface.get_width()) / 2
                 display.blit(surface, (start_x, self.dim[1] - 100))
         self._notifications.render(display)
