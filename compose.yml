@@ -60,9 +60,10 @@ services:
       - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
       - DISPLAY=host.docker.internal:0
-      - /tmp/.X11-unix:/tmp/.X11-unix
       # Debug Info
       - CC_SPEED=$CC_SPEED
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
     restart: on-failure
     depends_on:
       rabbitmq:
