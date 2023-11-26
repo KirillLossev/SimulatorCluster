@@ -62,8 +62,10 @@ services:
       - DISPLAY=$DISPLAY
       # Debug Info
       - CC_SPEED=$CC_SPEED
+      - XAUTHORITY=$XAUTHORITY
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - $XAUTHORITY:$XAUTHORITY:rw
     restart: on-failure
     depends_on:
       rabbitmq:
