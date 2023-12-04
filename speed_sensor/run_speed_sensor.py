@@ -31,9 +31,8 @@ def parse_hostport(hp):
     result = urllib.parse.urlsplit('//' + hp)
     return result.hostname, result.port
 
+(carla_host, carla_port) = parse_hostport(env_vars["CARLA_SERVER"])
 (mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
-(carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
 
 def push_data(speed, channel):
     channel.basic_publish(exchange='speed', routing_key='', body=str(speed))
