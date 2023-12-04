@@ -55,7 +55,7 @@ def parse_hostport(hp):
 from dotenv import dotenv_values
 
 # Load environment variables from .env file
-env_vars = dotenv_values('../.env')
+env_vars = dotenv_values('.env')
 
 try:
     env_vars["CARLA_SERVER"]
