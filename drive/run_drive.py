@@ -52,25 +52,26 @@ def parse_hostport(hp):
     result = urllib.parse.urlsplit('//' + hp)
     return result.hostname, result.port
 
-print(os.environ)
+from dotenv import dotenv_values
 
-if not os.environ["CARLA_SERVER"]:
+
+if not dotenv["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
     exit()
-if not os.environ["MQ_SERVER"]:
+if not dotenv["MQ_SERVER"]:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
-if not os.environ["HUD_VERSION"]:
+if not dotenv["HUD_VERSION"]:
     print("The HUD component version is not specified. Set the HUD_VERSION environment variable.")
     exit()
 
-(carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
-hud_version = os.environ["HUD_VERSION"]
+(carla_host, carla_port) = parse_hostport(dotenv["CARLA_SERVER"])
+(mq_host, mq_port) = parse_hostport(dotenv["MQ_SERVER"])
+hud_version = dotenv["HUD_VERSION"]
 
 debug_info = []
-if os.environ["CC_SPEED"]:
-    debug_info.append("Cruise Control Setting: " + os.environ["CC_SPEED"] + " km/h")
+if dotenv["CC_SPEED"]:
+    debug_info.append("Cruise Control Setting: " + dotenv["CC_SPEED"] + " km/h")
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
