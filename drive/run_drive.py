@@ -1672,7 +1672,6 @@ def game_loop(args):
                 world.destroy()
         except UnboundLocalError:
             print("Referenced before assignment")
-            world.destroy()
 
 
 def exit_game():
