@@ -36,13 +36,14 @@ Welcome to CARLA No-Rendering Mode Visualizer
 # -- find carla module ---------------------------------------------------------
 # ==============================================================================
 
-import functools
 import glob
-import json
 import os
-import threading
-import pika
 import sys
+
+import json
+import pika
+import threading
+import functools
 
 from dotenv import dotenv_values
 
@@ -1467,6 +1468,8 @@ class InputControl(object):
         """Assigns other initialized modules that input module needs."""
         self._hud = hud
         self._world = world
+
+        # messaging properties
         self._control_channel = control_channel
         self._connection = pika_connection
 
@@ -1569,6 +1572,8 @@ class InputControl(object):
             if isinstance(self.control, carla.VehicleControl):
                 self._parse_keys(clock.get_time())
                 self.control.reverse = self.control.gear < 0
+
+            # adding callback thread safety
             publish_cb = functools.partial(self._control_channel.basic_publish,
                               exchange='control',
                               routing_key='',
@@ -1600,6 +1605,7 @@ def game_loop(args):
         channel.queue_bind(exchange='speed', queue=speed_queue.method.queue)
 
         channel.confirm_delivery()
+
         # Init Pygame
         pygame.init()
         display = pygame.display.set_mode(
@@ -1630,8 +1636,10 @@ def game_loop(args):
             auto_ack=True,
             on_message_callback=hud.get_speed_update
         )
+        # puts the consume on a different thread
         speed_thread = threading.Thread(target=channel.start_consuming)
         speed_thread.start()
+
         # Game loop
         clock = pygame.time.Clock()
         while True:
@@ -1652,6 +1660,8 @@ def game_loop(args):
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
+
+        # Stop consuming messages
         channel.stop_consuming()
         speed_thread.join(0)
 

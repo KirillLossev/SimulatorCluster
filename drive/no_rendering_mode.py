@@ -41,6 +41,9 @@ import os
 import sys
 
 import json
+import pika
+import threading
+import functools
 
 from dotenv import dotenv_values
 
@@ -1127,6 +1130,8 @@ class World(object):
         ]
 
         self._hud.add_info(self.name, info_text)
+        self._hud.add_info("Debug", debug_info)
+        self._hud.speed_limit = affected_speed_limit_text
         self._hud.add_info('HERO', hero_mode_text)
 
     @staticmethod
@@ -1432,11 +1437,17 @@ class InputControl(object):
         # Modules that input will depend on
         self._hud = None
         self._world = None
+        self._control_channel = None
+        self._connection = None
 
-    def start(self, hud, world):
+    def start(self, hud, world, control_channel, pika_connection):
         """Assigns other initialized modules that input module needs."""
         self._hud = hud
         self._world = world
+
+        # messaging properties
+        self._control_channel = control_channel
+        self._connection = pika_connection
 
         self._hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
@@ -1540,6 +1551,13 @@ class InputControl(object):
             if (self._world.hero_actor is not None):
                 self._world.hero_actor.apply_control(self.control)
 
+            # adding callback thread safety
+            publish_cb = functools.partial(self._control_channel.basic_publish,
+                              exchange='control',
+                              routing_key='',
+                              body=serialize_control(self.control))
+            self._connection.add_callback_threadsafe(publish_cb)
+
     @staticmethod
     def _is_quit_shortcut(key):
         """Returns True if one of the specified keys are pressed"""
@@ -1554,6 +1572,18 @@ class InputControl(object):
 def game_loop(args):
     """Initialized, Starts and runs all the needed modules for No Rendering Mode"""
     try:
+        # Connect to the message queue
+        connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host=mq_host,
+        port=mq_port))
+        channel = connection.channel()
+        channel.exchange_declare(exchange='control', exchange_type='fanout')
+
+        speed_queue = channel.queue_declare(queue='', exclusive='True')
+        channel.queue_bind(exchange='speed', queue=speed_queue.method.queue)
+
+        channel.confirm_delivery()
+
         # Init Pygame
         pygame.init()
         display = pygame.display.set_mode(
@@ -1575,9 +1605,18 @@ def game_loop(args):
         world = World(TITLE_WORLD, args, timeout=2.0)
 
         # For each module, assign other modules that are going to be used inside that module
-        input_control.start(hud, world)
+        input_control.start(hud, world, channel, connection)
         hud.start()
         world.start(hud, input_control)
+
+        channel.basic_consume(
+            queue=speed_queue.method.queue,
+            auto_ack=True,
+            on_message_callback=hud.get_speed_update
+        )
+        # puts the consume on a different thread
+        speed_thread = threading.Thread(target=channel.start_consuming)
+        speed_thread.start()
 
         # Game loop
         clock = pygame.time.Clock()
@@ -1599,6 +1638,10 @@ def game_loop(args):
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
+
+        # Stop consuming messages
+        channel.stop_consuming()
+        speed_thread.join(0)
 
     finally:
         if world is not None:
