@@ -43,7 +43,7 @@ import os
 import threading
 import pika
 import sys
-from host_util import parse_hostport
+from ..host_util import parse_hostport
 
 if not os.environ["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
