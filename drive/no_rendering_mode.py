@@ -53,6 +53,21 @@ except KeyError:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
 
+import urllib.parse
+
+# https://stackoverflow.com/a/53172593
+def parse_hostport(hp):
+    # urlparse() and urlsplit() insists on absolute URLs starting with "//"
+    result = urllib.parse.urlsplit('//' + hp)
+    return result.hostname, result.port
+
+(mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
+hud_version = env_vars["HUD_VERSION"]
+
+debug_info = []
+if env_vars["CC_SPEED"]:
+    debug_info.append("Cruise Control Setting: " + env_vars["CC_SPEED"] + " km/h")
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -405,6 +420,10 @@ class HUD (object):
                 v_offset += 24
         self._notifications.render(display)
         self.help.render(display)
+
+    def get_speed_update(self, channel, method, properties, body):
+        """Accepts a speed update from the MQ"""
+        self.speed = float(body)
 
 
 # ==============================================================================
