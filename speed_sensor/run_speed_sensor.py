@@ -5,16 +5,33 @@ import carla
 import carla_util
 import pika
 
-from host_util import parse_hostport
+import urllib.parse
 
-if not os.environ["CARLA_SERVER"]:
+from dotenv import dotenv_values
+
+# Load environment variables from .env file
+env_vars = dotenv_values('.env')
+
+try:
+    env_vars["CARLA_SERVER"]
+except KeyError:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
     exit()
 
-if not os.environ["MQ_SERVER"]:
+try:
+    env_vars["MQ_SERVER"]
+except KeyError:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
     
+
+# https://stackoverflow.com/a/53172593
+def parse_hostport(hp):
+    # urlparse() and urlsplit() insists on absolute URLs starting with "//"
+    result = urllib.parse.urlsplit('//' + hp)
+    return result.hostname, result.port
+
+(mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
 (carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
 (mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
 
