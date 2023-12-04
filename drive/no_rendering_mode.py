@@ -45,6 +45,8 @@ import pika
 import threading
 import functools
 
+import urllib.parse
+
 from dotenv import dotenv_values
 
 # Load environment variables from .env file
@@ -55,8 +57,6 @@ try:
 except KeyError:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
-
-import urllib.parse
 
 # https://stackoverflow.com/a/53172593
 def parse_hostport(hp):
