@@ -1644,8 +1644,11 @@ def game_loop(args):
         speed_thread.join(0)
 
     finally:
-        if world is not None:
-            world.destroy()
+        try:
+            if world is not None:
+                world.destroy()
+        except UnboundLocalError:
+            print("Referenced before assignment")
 
 
 def exit_game():
