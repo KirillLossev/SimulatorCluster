@@ -43,7 +43,14 @@ import os
 import threading
 import pika
 import sys
-from ..host_util import parse_hostport
+
+import urllib.parse
+
+# https://stackoverflow.com/a/53172593
+def parse_hostport(hp):
+    # urlparse() and urlsplit() insists on absolute URLs starting with "//"
+    result = urllib.parse.urlsplit('//' + hp)
+    return result.hostname, result.port
 
 if not os.environ["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
