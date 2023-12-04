@@ -52,6 +52,8 @@ def parse_hostport(hp):
     result = urllib.parse.urlsplit('//' + hp)
     return result.hostname, result.port
 
+print(os.environ)
+
 if not os.environ["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
     exit()
