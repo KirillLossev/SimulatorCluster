@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Adapted from CARLA's example script no_rendering_mode.py
+
 # Copyright (c) 2019 Computer Vision Center (CVC) at the Universitat Autonoma de
 # Barcelona (UAB).
 #
@@ -37,6 +39,19 @@ Welcome to CARLA No-Rendering Mode Visualizer
 import glob
 import os
 import sys
+
+import json
+
+from dotenv import dotenv_values
+
+# Load environment variables from .env file
+env_vars = dotenv_values('../.env')
+
+try:
+    env_vars["MQ_SERVER"]
+except KeyError:
+    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
+    exit()
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -158,6 +173,18 @@ def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
 
+def serialize_control(control):
+    props = {
+        'throttle': control.throttle,
+        'steer': control.steer,
+        'brake': control.brake,
+        'hand_brake': control.hand_brake,
+        'reverse': control.reverse,
+        'manual_gear_shift': control.manual_gear_shift,
+        'gear': control.gear
+    }
+    return json.dumps(props)
+
 
 class Util(object):
 
@@ -266,6 +293,8 @@ class HUD (object):
         self.dim = (width, height)
         self._init_hud_params()
         self._init_data_params()
+        self.speed = 0
+        self.speed_limit = 0
 
     def start(self):
         """Does nothing since it does not need to use other modules"""
@@ -279,6 +308,7 @@ class HUD (object):
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
         self._header_font = pygame.font.SysFont('Arial', 14, True)
+        self._speed_font = pygame.font.SysFont('Arial', 24, True)
         self.help = HelpText(pygame.font.Font(mono, 24), *self.dim)
         self._notifications = FadingText(
             pygame.font.Font(pygame.font.get_default_font(), 20),

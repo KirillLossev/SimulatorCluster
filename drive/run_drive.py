@@ -53,7 +53,7 @@ def parse_hostport(hp):
     return result.hostname, result.port
 
 from dotenv import dotenv_values
- 
+
 # Load environment variables from .env file
 env_vars = dotenv_values('../.env')
 
@@ -63,13 +63,13 @@ except KeyError:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
     exit()
 
-try: 
+try:
     env_vars["MQ_SERVER"]
 except KeyError:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
 
-try: 
+try:
     env_vars["HUD_VERSION"]
 except KeyError:
     print("The HUD component version is not specified. Set the HUD_VERSION environment variable.")
