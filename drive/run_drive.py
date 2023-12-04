@@ -55,7 +55,7 @@ def parse_hostport(hp):
 from dotenv import dotenv_values
 
 # Load environment variables from .env file
-env_vars = dotenv_values('.env')
+env_vars = dotenv_values('../.env')
 
 if not env_vars["CARLA_SERVER"]:
     print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
