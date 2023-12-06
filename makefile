@@ -8,4 +8,8 @@ make:
 		${python} main.py speed_sensor run_speed_sensor.py & \
 		${python} main.py drive run_drive.py
 
+kill:
+   pgrep -f ${run_carla} | kill
+
+
 
