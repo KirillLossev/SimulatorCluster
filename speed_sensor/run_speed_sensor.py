@@ -2,15 +2,12 @@ import math
 import os
 import threading
 import carla
-import carla_util
 import pika
 
-import urllib.parse
+from ..resources import parse_hostport
+from ..resources.carla_util import *
 
 from dotenv import dotenv_values
-
-# Load environment variables from .env file
-env_vars = dotenv_values('.env')
 
 try:
     env_vars["CARLA_SERVER"]
@@ -24,13 +21,6 @@ except KeyError:
     print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
     exit()
     
-
-# https://stackoverflow.com/a/53172593
-def parse_hostport(hp):
-    # urlparse() and urlsplit() insists on absolute URLs starting with "//"
-    result = urllib.parse.urlsplit('//' + hp)
-    return result.hostname, result.port
-
 (carla_host, carla_port) = parse_hostport(env_vars["CARLA_SERVER"])
 (mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
 
