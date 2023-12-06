@@ -8,13 +8,25 @@ This data can then be used by *Decision Components* to declare some action for t
 
 External applications can also connect to the message queue to access data.
 
----
+# Running the Exemplar
 
-## Requirements
-- Docker Engine with the Compose plugin
+Each component is running in parallel, but the components have a dependency on each other. 
+Therefore, the order they are run is important.
 
-## Limitations
-This cluster is intended to launch a CARLA server as well, however due to issues with graphics drivers in Docker this is not implemented.
-A server will have to be run separately, and the `CARLA_HOST` environment variable in `compose.yml` set to its address. (By default, the cluster will attempt to connect on the same machine on the default port 2000)
+## Prerequisites
+We have used ``python3.8`` to run our exemplar. 
 
-The spawned vehicle is intended to be controllable through a `pygame` window that it launches, however it does not appear when the cluster runs, even if an X Display Server is running.
+We have a functioning Carla Simulator on Ubuntu that can be run using the script ``/opt/carla_simulator/CarlaUE4.sh``.
+
+``RabbitMQ`` is also running as a service on the host machine at the default ``localhost:5672``.
+
+With all of these being in place, to run the exemplar one has to first run the Carla Simulation under a ``-RenderOffScreen`` flag. 
+
+## Everything Together
+Then run the sensors, *decision components*, and the driving file in the expected order. 
+This order can be confusing; therefore, they have been archived in the ``Makefile``.
+
+To run this exemplar, one simply has to run (Given you have the prerequisites):
+```
+make
+```
