@@ -42,3 +42,6 @@ world.on_tick(lambda _: on_tick(hero_actor, channel))
 # Run until stopped
 forever = threading.Event()
 forever.wait()
+
+print("end")
+print("*" * 20)
