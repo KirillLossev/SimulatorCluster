@@ -4,10 +4,14 @@ import threading
 import carla
 import pika
 
-from main import carla_host, carla_port
-from main import mq_host, mq_port
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-from main import select_hero_actor
+from environments import carla_host, carla_port
+from environments import mq_host, mq_port
+
+import carla_util
 
 def push_data(speed, channel):
     channel.basic_publish(exchange='speed', routing_key='', body=str(speed))
@@ -26,7 +30,7 @@ def on_tick(actor, channel):
 client = carla.Client(carla_host, carla_port)
 world = client.get_world()
 world.wait_for_tick()
-hero_actor = select_hero_actor(world)
+hero_actor = carla_util.select_hero_actor(world)
 
 # Connect to the message queue
 connection = pika.BlockingConnection(pika.ConnectionParameters(

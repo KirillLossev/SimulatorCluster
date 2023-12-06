@@ -56,10 +56,14 @@ import pika
 import threading
 import functools
 
-from main import carla_host, carla_port
-from main import mq_host, mq_port
-from main import hud_version
-from main import debug_info
+# import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
+
+from environments import carla_host, carla_port
+from environments import mq_host, mq_port
+from environments import hud_version
+from environments import debug_info
 
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
