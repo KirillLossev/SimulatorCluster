@@ -33,6 +33,19 @@ except KeyError:
 (mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
 hud_version = env_vars["HUD_VERSION"]
 
-debug_info = []
-if env_vars["CC_SPEED"]:
-    debug_info.append("Cruise Control Setting: " + env_vars["CC_SPEED"] + " km/h")
+try:
+    env_vars["CC_SPEED"]
+except KeyError:
+    print("Cruise Control speed is not specified")
+    exit()
+
+debug_info = ["Cruise Control Setting: " + env_vars["CC_SPEED"] + " km/h"]
+cc_speed = float(os.environ["CC_SPEED"])
+
+try:
+    env_vars["VERSION"]
+except KeyError:
+    print("The component version to run is not specified. Set the VERSION environment variable.")
+    exit()
+
+version = env_vars["VERSION"]
