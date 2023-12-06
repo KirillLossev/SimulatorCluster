@@ -1,17 +1,11 @@
-import os
 import pika
-from host_util import parse_hostport
 
-if not os.environ["MQ_SERVER"]:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-if not os.environ["VERSION"]:
-    print("The component version to run is not specified. Set the VERSION environment variable.")
-    exit()
-
-
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
+from environments import mq_host, mq_port
+from environments import version
 
 def is_distance_safe_v1(distance: float):
     return distance >= 50 or distance == 0 # in metres
@@ -20,9 +14,9 @@ def is_distance_safe_v2(distance: float):
     return distance >= 75 or distance == 0 # in metres
 
 is_distance_safe = None
-if os.environ["VERSION"] == "1":
+if version == "1":
     is_distance_safe = is_distance_safe_v1
-elif os.environ["VERSION"] == "2":
+elif version == "2":
     is_distance_safe = is_distance_safe_v2
 else:
     print("Invalid version.")

@@ -1,0 +1,6 @@
+pika
+# carla
+pygame
+python-dotenv
+threading
+functools

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# Adapted from CARLA's example script no_rendering_mode.py
-
 # Copyright (c) 2019 Computer Vision Center (CVC) at the Universitat Autonoma de
 # Barcelona (UAB).
 #
@@ -47,23 +45,6 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
-# ==============================================================================
-# -- adapted imports -----------------------------------------------------------
-# ==============================================================================
-import json
-import pika
-import threading
-import functools
-
-# import sys
-from pathlib import Path
-sys.path.append(f'{Path(__file__).parent.parent}/resources')
-
-from environments import carla_host, carla_port
-from environments import mq_host, mq_port
-from environments import hud_version
-from environments import debug_info
 
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
@@ -177,18 +158,6 @@ def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
 
-def serialize_control(control):
-    props = {
-        'throttle': control.throttle,
-        'steer': control.steer,
-        'brake': control.brake,
-        'hand_brake': control.hand_brake,
-        'reverse': control.reverse,
-        'manual_gear_shift': control.manual_gear_shift,
-        'gear': control.gear
-    }
-    return json.dumps(props)
-
 
 class Util(object):
 
@@ -297,8 +266,6 @@ class HUD (object):
         self.dim = (width, height)
         self._init_hud_params()
         self._init_data_params()
-        self.speed = 0
-        self.speed_limit = 0
 
     def start(self):
         """Does nothing since it does not need to use other modules"""
@@ -312,7 +279,6 @@ class HUD (object):
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
         self._header_font = pygame.font.SysFont('Arial', 14, True)
-        self._speed_font = pygame.font.SysFont('Arial', 24, True)
         self.help = HelpText(pygame.font.Font(mono, 24), *self.dim)
         self._notifications = FadingText(
             pygame.font.Font(pygame.font.get_default_font(), 20),
@@ -407,27 +373,8 @@ class HUD (object):
                         display.blit(surface, (8, 18 * i + v_offset))
                     v_offset += 18
                 v_offset += 24
-            if hud_version != "0":
-                # If the speed limit is unavailable, fall back to a green ratio
-                speed_ratio = self.speed / self.speed_limit if self.speed_limit != 0 else 0.8
-                speed_color = COLOR_ALUMINIUM_0
-                if hud_version == "2":
-                    if speed_ratio < 0.5 or speed_ratio > 1.1:
-                        speed_color = COLOR_SCARLET_RED_0
-                    elif speed_ratio < 0.75 or speed_ratio > 1:
-                        speed_color = COLOR_BUTTER_0
-                    else:
-                        speed_color = COLOR_CHAMELEON_0
-                speed_text = f"Speed: {self.speed:.3f} km/h"
-                surface = self._speed_font.render(speed_text, True, speed_color).convert_alpha()
-                start_x = (self.dim[0] - surface.get_width()) / 2
-                display.blit(surface, (start_x, self.dim[1] - 100))
         self._notifications.render(display)
         self.help.render(display)
-
-    def get_speed_update(self, channel, method, properties, body):
-        """Accepts a speed update from the MQ"""
-        self.speed = float(body)
 
 
 # ==============================================================================
@@ -975,7 +922,7 @@ class World(object):
     def _get_data_from_carla(self):
         """Retrieves the data from the server side"""
         try:
-            self.client = carla.Client(carla_host, carla_port)
+            self.client = carla.Client(self.args.host, self.args.port)
             self.client.set_timeout(self.timeout)
 
             if self.args.map is None:
@@ -1093,6 +1040,9 @@ class World(object):
 
         hero_mode_text = []
         if self.hero_actor is not None:
+            hero_speed = self.hero_actor.get_velocity()
+            hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
+
             affected_traffic_light_text = 'None'
             if self.affected_traffic_light is not None:
                 state = self.affected_traffic_light.state
@@ -1110,6 +1060,7 @@ class World(object):
                 'Hero Mode:                 ON',
                 'Hero ID:              %7d' % self.hero_actor.id,
                 'Hero Vehicle:  %14s' % get_actor_display_name(self.hero_actor, truncate=14),
+                'Hero Speed:          %3d km/h' % hero_speed_text,
                 'Hero Affected by:',
                 '  Traffic Light: %12s' % affected_traffic_light_text,
                 '  Speed Limit:       %3d km/h' % affected_speed_limit_text
@@ -1127,8 +1078,6 @@ class World(object):
         ]
 
         self._hud.add_info(self.name, info_text)
-        self._hud.add_info("Debug", debug_info)
-        self._hud.speed_limit = affected_speed_limit_text
         self._hud.add_info('HERO', hero_mode_text)
 
     @staticmethod
@@ -1434,17 +1383,11 @@ class InputControl(object):
         # Modules that input will depend on
         self._hud = None
         self._world = None
-        self._control_channel = None
-        self._connection = None
 
-    def start(self, hud, world, control_channel, pika_connection):
+    def start(self, hud, world):
         """Assigns other initialized modules that input module needs."""
         self._hud = hud
         self._world = world
-
-        # messaging properties
-        self._control_channel = control_channel
-        self._connection = pika_connection
 
         self._hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
@@ -1545,13 +1488,8 @@ class InputControl(object):
             if isinstance(self.control, carla.VehicleControl):
                 self._parse_keys(clock.get_time())
                 self.control.reverse = self.control.gear < 0
-
-            # adding callback thread safety
-            publish_cb = functools.partial(self._control_channel.basic_publish,
-                              exchange='control',
-                              routing_key='',
-                              body=serialize_control(self.control))
-            self._connection.add_callback_threadsafe(publish_cb)
+            if (self._world.hero_actor is not None):
+                self._world.hero_actor.apply_control(self.control)
 
     @staticmethod
     def _is_quit_shortcut(key):
@@ -1567,18 +1505,6 @@ class InputControl(object):
 def game_loop(args):
     """Initialized, Starts and runs all the needed modules for No Rendering Mode"""
     try:
-        # Connect to the message queue
-        connection = pika.BlockingConnection(pika.ConnectionParameters(
-        host=mq_host,
-        port=mq_port))
-        channel = connection.channel()
-        channel.exchange_declare(exchange='control', exchange_type='fanout')
-
-        speed_queue = channel.queue_declare(queue='', exclusive='True')
-        channel.queue_bind(exchange='speed', queue=speed_queue.method.queue)
-
-        channel.confirm_delivery()
-
         # Init Pygame
         pygame.init()
         display = pygame.display.set_mode(
@@ -1600,18 +1526,9 @@ def game_loop(args):
         world = World(TITLE_WORLD, args, timeout=2.0)
 
         # For each module, assign other modules that are going to be used inside that module
-        input_control.start(hud, world, channel, connection)
+        input_control.start(hud, world)
         hud.start()
         world.start(hud, input_control)
-
-        channel.basic_consume(
-            queue=speed_queue.method.queue,
-            auto_ack=True,
-            on_message_callback=hud.get_speed_update
-        )
-        # puts the consume on a different thread
-        speed_thread = threading.Thread(target=channel.start_consuming)
-        speed_thread.start()
 
         # Game loop
         clock = pygame.time.Clock()
@@ -1634,16 +1551,9 @@ def game_loop(args):
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 
-        # Stop consuming messages
-        channel.stop_consuming()
-        speed_thread.join(0)
-
     finally:
-        try:
-            if world is not None:
-                world.destroy()
-        except UnboundLocalError:
-            print("Referenced before assignment")
+        if world is not None:
+            world.destroy()
 
 
 def exit_game():
@@ -1667,6 +1577,17 @@ def main():
         action='store_true',
         dest='debug',
         help='print debug information')
+    argparser.add_argument(
+        '--host',
+        metavar='H',
+        default='127.0.0.1',
+        help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-p', '--port',
+        metavar='P',
+        default=2000,
+        type=int,
+        help='TCP port to listen to (default: 2000)')
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
@@ -1708,7 +1629,7 @@ def main():
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
-    logging.info('listening to server %s:%s', carla_host, carla_port)
+    logging.info('listening to server %s:%s', args.host, args.port)
     print(__doc__)
 
     # Run game loop

@@ -40,6 +40,37 @@ import glob
 import os
 import sys
 
+import json
+import pika
+import threading
+import functools
+
+import urllib.parse
+
+from dotenv import dotenv_values
+
+# Load environment variables from .env file
+env_vars = dotenv_values('.env')
+
+try:
+    env_vars["MQ_SERVER"]
+except KeyError:
+    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
+    exit()
+
+# https://stackoverflow.com/a/53172593
+def parse_hostport(hp):
+    # urlparse() and urlsplit() insists on absolute URLs starting with "//"
+    result = urllib.parse.urlsplit('//' + hp)
+    return result.hostname, result.port
+
+(mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
+hud_version = env_vars["HUD_VERSION"]
+
+debug_info = []
+if env_vars["CC_SPEED"]:
+    debug_info.append("Cruise Control Setting: " + env_vars["CC_SPEED"] + " km/h")
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -47,23 +78,6 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
-# ==============================================================================
-# -- adapted imports -----------------------------------------------------------
-# ==============================================================================
-import json
-import pika
-import threading
-import functools
-
-# import sys
-from pathlib import Path
-sys.path.append(f'{Path(__file__).parent.parent}/resources')
-
-from environments import carla_host, carla_port
-from environments import mq_host, mq_port
-from environments import hud_version
-from environments import debug_info
 
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
@@ -407,21 +421,6 @@ class HUD (object):
                         display.blit(surface, (8, 18 * i + v_offset))
                     v_offset += 18
                 v_offset += 24
-            if hud_version != "0":
-                # If the speed limit is unavailable, fall back to a green ratio
-                speed_ratio = self.speed / self.speed_limit if self.speed_limit != 0 else 0.8
-                speed_color = COLOR_ALUMINIUM_0
-                if hud_version == "2":
-                    if speed_ratio < 0.5 or speed_ratio > 1.1:
-                        speed_color = COLOR_SCARLET_RED_0
-                    elif speed_ratio < 0.75 or speed_ratio > 1:
-                        speed_color = COLOR_BUTTER_0
-                    else:
-                        speed_color = COLOR_CHAMELEON_0
-                speed_text = f"Speed: {self.speed:.3f} km/h"
-                surface = self._speed_font.render(speed_text, True, speed_color).convert_alpha()
-                start_x = (self.dim[0] - surface.get_width()) / 2
-                display.blit(surface, (start_x, self.dim[1] - 100))
         self._notifications.render(display)
         self.help.render(display)
 
@@ -975,7 +974,7 @@ class World(object):
     def _get_data_from_carla(self):
         """Retrieves the data from the server side"""
         try:
-            self.client = carla.Client(carla_host, carla_port)
+            self.client = carla.Client(self.args.host, self.args.port)
             self.client.set_timeout(self.timeout)
 
             if self.args.map is None:
@@ -1093,6 +1092,9 @@ class World(object):
 
         hero_mode_text = []
         if self.hero_actor is not None:
+            hero_speed = self.hero_actor.get_velocity()
+            hero_speed_text = 3.6 * math.sqrt(hero_speed.x ** 2 + hero_speed.y ** 2 + hero_speed.z ** 2)
+
             affected_traffic_light_text = 'None'
             if self.affected_traffic_light is not None:
                 state = self.affected_traffic_light.state
@@ -1110,6 +1112,7 @@ class World(object):
                 'Hero Mode:                 ON',
                 'Hero ID:              %7d' % self.hero_actor.id,
                 'Hero Vehicle:  %14s' % get_actor_display_name(self.hero_actor, truncate=14),
+                'Hero Speed:          %3d km/h' % hero_speed_text,
                 'Hero Affected by:',
                 '  Traffic Light: %12s' % affected_traffic_light_text,
                 '  Speed Limit:       %3d km/h' % affected_speed_limit_text
@@ -1545,6 +1548,8 @@ class InputControl(object):
             if isinstance(self.control, carla.VehicleControl):
                 self._parse_keys(clock.get_time())
                 self.control.reverse = self.control.gear < 0
+            if (self._world.hero_actor is not None):
+                self._world.hero_actor.apply_control(self.control)
 
             # adding callback thread safety
             publish_cb = functools.partial(self._control_channel.basic_publish,
@@ -1668,6 +1673,17 @@ def main():
         dest='debug',
         help='print debug information')
     argparser.add_argument(
+        '--host',
+        metavar='H',
+        default='127.0.0.1',
+        help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-p', '--port',
+        metavar='P',
+        default=2000,
+        type=int,
+        help='TCP port to listen to (default: 2000)')
+    argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
         default='1280x720',
@@ -1708,7 +1724,7 @@ def main():
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
-    logging.info('listening to server %s:%s', carla_host, carla_port)
+    logging.info('listening to server %s:%s', args.host, args.port)
     print(__doc__)
 
     # Run game loop

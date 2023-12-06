@@ -1,22 +1,16 @@
 import math
-import os
 import threading
 import carla
-import carla_util
 import pika
 
-from host_util import parse_hostport
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-if not os.environ["CARLA_SERVER"]:
-    print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
-    exit()
+from environments import carla_host, carla_port
+from environments import mq_host, mq_port
 
-if not os.environ["MQ_SERVER"]:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
-    
-(carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
+import carla_util
 
 def push_data(speed, channel):
     channel.basic_publish(exchange='speed', routing_key='', body=str(speed))
@@ -51,3 +45,6 @@ world.on_tick(lambda _: on_tick(hero_actor, channel))
 # Run until stopped
 forever = threading.Event()
 forever.wait()
+
+print("end")
+print("*" * 20)

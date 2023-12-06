@@ -1,20 +1,13 @@
-import os
 import threading
 import carla
 import pika
 
-from host_util import parse_hostport
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-if not os.environ["CARLA_SERVER"]:
-    print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
-    exit()
-
-if not os.environ["MQ_SERVER"]:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
-    
-(carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
+from environments import carla_host, carla_port
+from environments import mq_host, mq_port
 
 def push_data(data, channel):
     channel.basic_publish(exchange='', routing_key='obstacle_distance', body=str(data.distance))
