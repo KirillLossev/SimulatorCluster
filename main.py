@@ -1,5 +1,5 @@
 from resources.host_util import parse_hostport
-# from resources.carla_util import *
+from resources.carla_util import *
 
 from dotenv import dotenv_values
 
