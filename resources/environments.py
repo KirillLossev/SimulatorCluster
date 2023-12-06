@@ -40,7 +40,7 @@ except KeyError:
     exit()
 
 debug_info = ["Cruise Control Setting: " + env_vars["CC_SPEED"] + " km/h"]
-cc_speed = float(os.environ["CC_SPEED"])
+cc_speed = float(env_vars["CC_SPEED"])
 
 try:
     env_vars["VERSION"]
