@@ -1,19 +1,11 @@
-import os
 import pika
-from host_util import parse_hostport
 
-if not os.environ["MQ_SERVER"]:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-if not os.environ["CC_SPEED"]:
-    print("The cruise control speed is not specified. Set the CC_SPEED environment variable.")
-    exit()
-
-
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
-
-cc_speed = float(os.environ["CC_SPEED"])
+from environments import mq_host, mq_port
+from environments import cc_speed
 
 def vehicle_speed_below_set(curr_speed):
     return (curr_speed < cc_speed)

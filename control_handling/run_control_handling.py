@@ -1,13 +1,11 @@
 import json
-import os
 import pika
-from host_util import parse_hostport
 
-if not os.environ["MQ_SERVER"]:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
+import sys
+from pathlib import Path
+sys.path.append(f'{Path(__file__).parent.parent}/resources')
 
-(mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
+from environments import mq_host, mq_port
 
 cc_throttle_active = False
 
