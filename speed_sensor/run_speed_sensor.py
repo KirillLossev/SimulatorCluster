@@ -4,28 +4,10 @@ import threading
 import carla
 import pika
 
-from resources import parse_hostport
-from resources.carla_util import *
+from main import carla_host, carla_port
+from main import mq_host, mq_port
 
-from dotenv import dotenv_values
-
-# Load environment variables from .env file
-env_vars = dotenv_values('.env')
-
-try:
-    env_vars["CARLA_SERVER"]
-except KeyError:
-    print("The address of the CARLA server is not specified. Set the CARLA_SERVER environment variable.")
-    exit()
-
-try:
-    env_vars["MQ_SERVER"]
-except KeyError:
-    print("The address of the Message Queue server is not specified. Set the MQ_SERVER environment variable.")
-    exit()
-    
-(carla_host, carla_port) = parse_hostport(env_vars["CARLA_SERVER"])
-(mq_host, mq_port) = parse_hostport(env_vars["MQ_SERVER"])
+from main import select_hero_actor
 
 def push_data(speed, channel):
     channel.basic_publish(exchange='speed', routing_key='', body=str(speed))
@@ -44,7 +26,7 @@ def on_tick(actor, channel):
 client = carla.Client(carla_host, carla_port)
 world = client.get_world()
 world.wait_for_tick()
-hero_actor = carla_util.select_hero_actor(world)
+hero_actor = select_hero_actor(world)
 
 # Connect to the message queue
 connection = pika.BlockingConnection(pika.ConnectionParameters(
