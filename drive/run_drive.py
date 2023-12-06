@@ -45,7 +45,7 @@ import pika
 import threading
 import functools
 
-from ..resources import parse_hostport
+from resources import parse_hostport
 
 from dotenv import dotenv_values
 

@@ -4,10 +4,13 @@ import threading
 import carla
 import pika
 
-from ..resources import parse_hostport
-from ..resources.carla_util import *
+from resources import parse_hostport
+from resources.carla_util import *
 
 from dotenv import dotenv_values
+
+# Load environment variables from .env file
+env_vars = dotenv_values('.env')
 
 try:
     env_vars["CARLA_SERVER"]
