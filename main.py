@@ -1,5 +1,5 @@
 from resources.host_util import parse_hostport
-from resources.carla_util import *
+# from resources.carla_util import *
 
 from dotenv import dotenv_values
 
@@ -34,9 +34,25 @@ if env_vars["CC_SPEED"]:
 
 
 # ==============================================================================
-# -- Running the files ---------------------------------------------------------
+# -- Running the file ----------------------------------------------------------
 # ==============================================================================
 
-from speed_sensor import run_speed_sensor
+if __name__ == "__main__":
+    import sys
+    import importlib.util
 
-from drive import run_drive
+
+    # Check if the script was called with the correct number of arguments
+    if len(sys.argv) != 3:
+        print("Usage: python main.py <folder> <script.py>")
+        exit(1)
+
+    module_folder = sys.argv[1]
+    module_name = sys.argv[2]
+    module_path = f'{module_folder}/{module_name}'
+
+    print(f'##### Importing {module_path} #####')
+    
+    module_spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
