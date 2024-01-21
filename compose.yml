@@ -1,29 +1,24 @@
 version: '3.8'
 
 services:
-  # TODO: The CARLA image doesn't play nice with graphics drivers on Windows.
-  # Installing vulkantools onto the image and running vulkaninfo shows that
-  # the NVIDIA drivers aren't being used, even if WSL is able to use them.
-  # Building a new image by taking the CARLA Linux release, setting the
-  # included Dockerfile to use Ubuntu 22.04 or a NVIDIA CUDA image as the base
-  # didn't solve this either.
-
-  #carla:
-  #  image: carlasim/carla:0.9.14
-  #  container_name: carla
-  #  command: ./CarlaUE4.sh -nosound -RenderOffScreen
-  #  privileged: true
-  #  runtime: nvidia
-  #  ports:
-  #    - 2000-2002:2000-2002
-  #  environment:
-  #    - DISPLAY=host.docker.internal:0
-  #    - NVIDIA_VISIBLE_DEVICES=all
-  #    - NVIDIA_DRIVER_CAPABILITIES=all
-  #  volumes:
-  #   - /tmp/.X11-unix:/tmp/.X11-unix
-  #   - ./carla/logs:/home/carla/carlalog
-  #   - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d
+  carla:
+    image: carlasim/carla:0.9.14
+    container_name: carla
+    command: ./CarlaUE4.sh -nosound -RenderOffScreen
+    privileged: true
+    runtime: nvidia
+    ports:
+     - 2000-2002:2000-2002
+    environment:
+     - DISPLAY=$DISPLAY
+     - NVIDIA_VISIBLE_DEVICES=all
+     - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+     - /tmp/.X11-unix:/tmp/.X11-unix
+     - ./carla/logs:/home/carla/carlalog
+     - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d
+    devices:
+     - nvidia.com/gpu=all
   #  deploy:
   #    resources:
   #      reservations:
@@ -31,6 +26,24 @@ services:
   #          - driver: nvidia
   #            count: 1
   #            capabilities: [gpu]
+
+  scenarioloader:
+    build:
+      context: ./
+      dockerfile: scenario_loader/Dockerfile
+    container_name: scenarioloader
+    environment:
+      - CARLA_SERVER=$CARLA_SERVER
+      - MAP=Town06
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "ls", "loader_done"]
+      interval: 10s
+      timeout: 1s
+      retries: 5
+    depends_on:
+      carla:
+        condition: service_started
 
   rabbitmq:
     image: rabbitmq:3.12
@@ -71,7 +84,9 @@ services:
       rabbitmq:
         condition: service_healthy
       speedsensor:
-        condition: service_started 
+        condition: service_started
+      scenarioloader:
+        condition: service_healthy 
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
