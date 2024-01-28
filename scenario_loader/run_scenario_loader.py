@@ -21,14 +21,39 @@ if not os.environ["CARLA_SERVER"]:
 
 (carla_host, carla_port) = parse_hostport(os.environ["CARLA_SERVER"])
 client = carla.Client(carla_host, carla_port)
-client.set_timeout(2.0)
+client.set_timeout(20.0)
 
 if os.environ["MAP"]:
     world = client.load_world(os.environ["MAP"])
 else:
     world = client.get_world()
 
-carla_util.spawn_hero(world)
+# Set up scenario in synchronous mode
+settings = world.get_settings()
+settings.synchronous_mode = True
+world.apply_settings(settings)
+
+hero = carla_util.select_hero_actor(world)
+world.tick()
+
+# Spawn another car in front of the hero
+SPAWN_DISTANCE = 15 # m
+
+hero_transform = hero.get_transform()
+hero_forward_unit = hero_transform.get_forward_vector().make_unit_vector()
+partner_spawn = hero_transform
+partner_spawn.location.x += SPAWN_DISTANCE * hero_forward_unit.x
+partner_spawn.location.y += SPAWN_DISTANCE * hero_forward_unit.y
+partner_spawn.location.z += SPAWN_DISTANCE * hero_forward_unit.z
+partner_blueprint = carla_util.get_random_blueprint(world)
+partner = world.try_spawn_actor(partner_blueprint, partner_spawn)
+if partner is None:
+    print("Failed to spawn partner!", flush=True)
+
+world.tick()
+
+settings.synchronous_mode = False
+world.apply_settings(settings)
 
 # We are done, create the signal file.
 with open("loader_done", 'w') as _:

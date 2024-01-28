@@ -37,9 +37,10 @@ services:
       - MAP=Town06
     restart: on-failure
     healthcheck:
-      test: ["CMD", "ls", "loader_done"]
+      test: ls loader_done
       interval: 5s
-      timeout: 1s
+      timeout: 10s
+      start_period: 20s
       retries: 5
     depends_on:
       carla:
@@ -58,10 +59,10 @@ services:
     # should wait for the health check before starting to
     # avoid restart loops
     healthcheck:
-        test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-        interval: 5s
-        timeout: 10s
-        retries: 5
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
 
   drive:
     build:
@@ -81,8 +82,6 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-      speedsensor:
-        condition: service_started
       scenarioloader:
         condition: service_healthy 
     extra_hosts:
@@ -142,6 +141,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      scenarioloader:
+        condition: service_healthy 
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -156,11 +157,9 @@ services:
       - CC_SPEED=$CC_SPEED
     depends_on:
       rabbitmq:
-        condition: service_healthy  
-      drive:
-        condition: service_started
-      speedsensor:
-        condition: service_started
+        condition: service_healthy
+      scenarioloader:
+        condition: service_healthy
 
   control:
     build: 
@@ -172,13 +171,9 @@ services:
       - CC_SPEED=$CC_SPEED
     depends_on:
       rabbitmq:
-        condition: service_healthy  
-      speedsensor:
-        condition: service_started
-      cruisecontrol:
-        condition: service_started
-      drive:
-        condition: service_started
+        condition: service_healthy
+      scenarioloader:
+        condition: service_healthy
 
   throttleactuator:
     build:
@@ -190,10 +185,8 @@ services:
       - MQ_SERVER=rabbitmq:5672
     depends_on:
       rabbitmq:
-        condition: service_healthy  
-      drive:
-        condition: service_started
-      cruisecontrol:
-        condition: service_started
+        condition: service_healthy
+      scenarioloader:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"

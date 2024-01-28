@@ -1,14 +1,18 @@
 import carla
 import random
 
+def get_random_blueprint(world):
+    blueprint = random.choice(world.get_blueprint_library().filter('vehicle.*'))
+    if blueprint.has_attribute('color'):
+        color = random.choice(blueprint.get_attribute('color').recommended_values)
+        blueprint.set_attribute('color', color)
+    return blueprint
+
 def spawn_hero(world):
         """Spawns the hero actor when the script runs"""
         # Get a random blueprint.
-        blueprint = random.choice(world.get_blueprint_library().filter('vehicle.*'))
+        blueprint = get_random_blueprint(world)
         blueprint.set_attribute('role_name', 'hero')
-        if blueprint.has_attribute('color'):
-            color = random.choice(blueprint.get_attribute('color').recommended_values)
-            blueprint.set_attribute('color', color)
         # Spawn the player.
         hero_actor = None
         while hero_actor is None:

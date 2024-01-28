@@ -14,7 +14,7 @@ RUN python3.8 -m pip install pygame numpy pika carla==0.9.14
 
 RUN fc-cache -f -v
 
-COPY host_util.py drive/run_drive.py /
+COPY host_util.py carla_util.py drive/run_drive.py /
 
 COPY drive/startapp.sh /startapp.sh
 

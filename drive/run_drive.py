@@ -43,6 +43,7 @@ import os
 import threading
 import pika
 import sys
+import carla_util
 from host_util import parse_hostport
 
 if not os.environ["CARLA_SERVER"]:
@@ -1056,13 +1057,8 @@ class World(object):
 
     def select_hero_actor(self):
         """Selects only one hero actor if there are more than one. If there are not any, it will spawn one."""
-        hero_vehicles = [actor for actor in self.world.get_actors()
-                         if 'vehicle' in actor.type_id and actor.attributes['role_name'] == 'hero']
-        if len(hero_vehicles) > 0:
-            self.hero_actor = random.choice(hero_vehicles)
-            self.hero_transform = self.hero_actor.get_transform()
-        else:
-            self._spawn_hero()
+        self.hero_actor = carla_util.select_hero_actor(self.world)
+        self.hero_transform = self.hero_actor.get_transform()
 
     def _spawn_hero(self):
         """Spawns the hero actor when the script runs"""
