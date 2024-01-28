@@ -45,6 +45,8 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(
     host=mq_host,
     port=mq_port))
 channel = connection.channel()
+channel.exchange_declare(exchange='throttle', exchange_type='fanout')
+
 cc_queue = channel.queue_declare(queue='', exclusive=True)
 channel.queue_bind(exchange='throttle', queue=cc_queue.method.queue)
 channel.confirm_delivery()

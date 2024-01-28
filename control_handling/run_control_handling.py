@@ -28,6 +28,8 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(
     port=mq_port))
 channel = connection.channel()
 channel.exchange_declare(exchange='throttle', exchange_type='fanout')
+channel.exchange_declare(exchange='control', exchange_type='fanout')
+channel.exchange_declare(exchange='cruisecontrol', exchange_type='fanout')
 
 control_queue = channel.queue_declare(queue='', exclusive=True)
 channel.queue_bind(exchange='control', queue=control_queue.method.queue)
