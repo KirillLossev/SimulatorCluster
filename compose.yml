@@ -38,7 +38,7 @@ services:
     restart: on-failure
     healthcheck:
       test: ["CMD", "ls", "loader_done"]
-      interval: 10s
+      interval: 5s
       timeout: 1s
       retries: 5
     depends_on:
@@ -59,7 +59,7 @@ services:
     # avoid restart loops
     healthcheck:
         test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-        interval: 20s
+        interval: 5s
         timeout: 10s
         retries: 5
 
@@ -72,13 +72,11 @@ services:
       - HUD_VERSION=$HUD_VERSION
       - CARLA_SERVER=$CARLA_SERVER
       - MQ_SERVER=rabbitmq:5672
-      - DISPLAY=$DISPLAY
       # Debug Info
       - CC_SPEED=$CC_SPEED
-      - XAUTHORITY=$XAUTHORITY
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - $XAUTHORITY:$XAUTHORITY:rw
+    ports:
+      - 5800:5800
+      - 5900:5900
     restart: on-failure
     depends_on:
       rabbitmq:
