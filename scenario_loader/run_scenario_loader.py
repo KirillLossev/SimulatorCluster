@@ -37,7 +37,7 @@ hero = carla_util.select_hero_actor(world)
 world.tick()
 
 # Spawn another car in front of the hero
-SPAWN_DISTANCE = 15 # m
+SPAWN_DISTANCE = 50 # m
 
 hero_transform = hero.get_transform()
 hero_forward_unit = hero_transform.get_forward_vector().make_unit_vector()

@@ -103,32 +103,36 @@ services:
   #   # cause a restart loop if there is a genuine failure as well.
   #   restart: on-failure
 
-  # obstaclesensor:
-  #   build:
-  #     context: ./
-  #     dockerfile: obstacle_sensor/Dockerfile
-  #   container_name: obstaclesensor
-  #   environment:
-  #     - CARLA_SERVER=$CARLA_SERVER
-  #     - MQ_SERVER=rabbitmq:5672
-  #   depends_on:
-  #     - rabbitmq
-  #     - drive
-  #   restart: on-failure
+  obstaclesensor:
+    build:
+     context: ./
+     dockerfile: obstacle_sensor/Dockerfile
+    container_name: obstaclesensor
+    environment:
+      - CARLA_SERVER=$CARLA_SERVER
+      - MQ_SERVER=rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      scenarioloader:
+        condition: service_healthy
+    restart: on-failure
   
-  # obstaclehandling:
-  #   build: 
-  #     context: ./
-  #     dockerfile: obstacle_handling/Dockerfile
-  #   container_name: obstaclehandling
-  #   environment:
-  #     - CARLA_SERVER=$CARLA_SERVER
-  #     - MQ_SERVER=rabbitmq:5672
-  #     - VERSION=1
-  #   depends_on:
-  #     - rabbitmq
-  #     - drive
-  #   restart: on-failure
+  obstaclehandling:
+    build: 
+      context: ./
+      dockerfile: obstacle_handling/Dockerfile
+    container_name: obstaclehandling
+    environment:
+      - CARLA_SERVER=$CARLA_SERVER
+      - MQ_SERVER=rabbitmq:5672
+      - VERSION=$OBSTACLE_DETECTION_VERSION
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      scenarioloader:
+        condition: service_healthy
+    restart: on-failure
 
   speedsensor:
     build:
