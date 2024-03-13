@@ -8,13 +8,9 @@ This data can then be used by *Decision Components* to declare some action for t
 
 External applications can also connect to the message queue to access data.
 
+A visualizer can be accessed using VNC on `localhost:5900`, or through a web browser on `localhost:5800`. This can also be used to manually control the vehicle.
+
 ---
 
 ## Requirements
 - Docker Engine with the Compose plugin
-
-## Limitations
-This cluster is intended to launch a CARLA server as well, however due to issues with graphics drivers in Docker this is not implemented.
-A server will have to be run separately, and the `CARLA_HOST` environment variable in `compose.yml` set to its address. (By default, the cluster will attempt to connect on the same machine on the default port 2000)
-
-The spawned vehicle is intended to be controllable through a `pygame` window that it launches, however it does not appear when the cluster runs, even if an X Display Server is running.

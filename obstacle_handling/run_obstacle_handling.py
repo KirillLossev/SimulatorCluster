@@ -19,7 +19,7 @@ speed = 0
 (mq_host, mq_port) = parse_hostport(os.environ["MQ_SERVER"])
 
 def is_distance_safe_v1(distance: float):
-    return distance >= 50 or distance == 0 # in metres
+    return distance >= 3 or distance == 0 # in metres
 
 def is_distance_safe_v2(distance: float):
     return distance >= 75 or distance == 0 # in metres
