@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+title: Simulator Cluster
+message: An exemplar of a software-defined vehicle
+type: software
+authors:
+  - given-names: Kirill
+    family-names: Lossev
+    email: kirill@cs.toronto.edu
+    affiliation: University of Toronto
+repository-code: 'https://github.com/KirillLossev/SimulatorCluster'
