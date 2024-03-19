@@ -18,6 +18,8 @@ COPY host_util.py carla_util.py drive/run_drive.py /
 
 COPY drive/startapp.sh /startapp.sh
 
+RUN chmod +x /startapp.sh
+
 ENV USER_ID=0
 
 RUN set-cont-env APP_NAME "Simulation Viewer"
