@@ -9,6 +9,7 @@ This data can then be used by *Decision Components* to declare some action for t
 External applications can also connect to the message queue to access data.
 
 A visualizer can be accessed using VNC on `localhost:5900`, or through a web browser on `localhost:5800`. This can also be used to manually control the vehicle.
+The primary controls are WASD for movement and Q to shift to reverse.
 
 ---
 
